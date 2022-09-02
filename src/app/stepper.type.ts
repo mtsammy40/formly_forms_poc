@@ -1,8 +1,12 @@
-import {Component} from '@angular/core';
+import {Component, EventEmitter} from '@angular/core';
 import {FieldType, FormlyFieldConfig} from '@ngx-formly/core';
 import {Form, FormGroup, NgForm} from "@angular/forms";
 import {CustomFormlyFieldConfig} from "./CustomFormlyFieldConfig";
 import {MatStepper} from "@angular/material/stepper";
+import {delay, firstValueFrom, Observable, of, tap} from "rxjs";
+import {EventServiceService} from "./event-service.service";
+import {MatDialog} from "@angular/material/dialog";
+import {LoaderComponent} from "./loader.component";
 
 @Component({
   selector: 'formly-field-stepper',
@@ -23,7 +27,7 @@ import {MatStepper} from "@angular/material/stepper";
           <button *ngIf="!last"
                   class="btn btn-primary" type="button"
                   [disabled]="!isValid(step)"
-                  (click)="onNext(step, matStepper)">
+                  (click)="onNext(step, matStepper, form)">
             Next
           </button>
 
@@ -37,12 +41,17 @@ import {MatStepper} from "@angular/material/stepper";
       </mat-step>
     </mat-horizontal-stepper>
   `,
+  providers: []
 })
 export class FormlyFieldStepper extends FieldType {
+  constructor(private eventService: EventServiceService, private dialog: MatDialog) {
+    super();
+  }
+
   isValid(field: CustomFormlyFieldConfig): any {
     if (field.key) {
       // @ts-ignore
-      return field.formControl.valid;
+      return field?.formControl?.valid;
     }
 
     return field.fieldGroup
@@ -55,36 +64,93 @@ export class FormlyFieldStepper extends FieldType {
     console.log('Data...', form.value);
   }
 
-  async onNext(step: FormlyFieldConfig, stepper: MatStepper): Promise<void> {
-    console.log('On next ...', step);
+  async onNext(step: FormlyFieldConfig, stepper: MatStepper, form: any): Promise<void> {
+    console.log('On next ...', step, stepper, form);
     let actions: any = step.fieldGroup?.filter((fieldGroup) => !!fieldGroup?.templateOptions?.attributes?.['ib_action']).map((fieldGroup) => fieldGroup?.templateOptions?.attributes?.['ib_action']);
+    console.log('actions - ', actions.length);
     if (actions && actions.length > 0) {
       for (let action of actions) {
-        let response = await this.callBackend(action, step.model);
-        console.log('Response from backend', response);
-        let displayResponse: any = step.fieldGroup?.filter((fieldGroup) => !!fieldGroup?.templateOptions?.attributes?.['ib_display_response']).map((fieldGroup) => fieldGroup?.templateOptions?.attributes?.['ib_display_response']);
-        if(displayResponse) {
-          console.log('Dialog display ...', response.message);
-        } else {
-          // next
+        console.log('action - ', action);
+        let loaderDialogRef = this.dialog.open(LoaderComponent);
+        let response = await firstValueFrom(this.callBackend(action, step.model));
+        loaderDialogRef.close();
+        console.log('response - ', response);
+        if (response.fields && response.fields.length > 0) {
+          let currentConfigIndex: number = 0;
+          console.log('Extracted ', ...response.fields);
+          this.eventService.emit('configModified', {_atIndex: currentConfigIndex + 1, data: response.fields})
         }
-        if(response.code === "00") {
+        let displayResponse: any = step.fieldGroup?.filter((fieldGroup) => !!fieldGroup?.templateOptions?.attributes?.['ib_display_response']).map((fieldGroup) => fieldGroup?.templateOptions?.attributes?.['ib_display_response']);
+        if (displayResponse) {
+          console.log('Dialog display ...', response.message);
+        }
+        if (response.code === "00") {
           stepper.next();
         } else {
           // stay
         }
       }
+    } else {
+      stepper.next();
     }
   }
 
-  async callBackend(action: string, model: any): Promise<any> {
+  callBackend(action: string, model: any): Observable<any> {
     if (model) {
       model.validateType = action;
     } else {
       model = {validateType: action}
     }
     console.log('Calling backend...', action, model);
-    let response = {"code": "01", "message": "Customer name is Danny Owalo"}
-    return response;
+    let response;
+    switch (action) {
+      case "validateAccount":
+        response = {"code": "00", "message": "Customer name is Danny Owalo"}
+        break;
+      case "fetchFields":
+        response = {
+          "code": "00", "message": "Ok", "fields": [
+            {
+              "templateOptions": {
+                "label": "Step 2"
+              },
+              "fieldGroup": [
+                {
+                  "key": "guarantorName",
+                  "type": "input",
+                  "fetchUrl": "",
+                  "responseType": "",
+                  "validateUrl": "",
+                  "templateOptions": {
+                    "type": "string",
+                    "label": "Guarantor Name",
+                    "required": "true"
+                  },
+                },
+                {
+                  "key": "guarantorAmount",
+                  "type": "input",
+                  "fetchUrl": "",
+                  "responseType": "",
+                  "validateUrl": "",
+                  "templateOptions": {
+                    "type": "number",
+                    "label": "Guaranteed Amount",
+                    "min": 100,
+                    "max": 100000,
+                    "required": "true"
+                  },
+                }
+              ]
+            },
+          ]
+        }
+        break;
+      default:
+        response = {"code": "00", "message": "Customer name is Danny Owalo"}
+        break;
+    }
+    return of(response)
+      .pipe(delay(2000));
   }
 }

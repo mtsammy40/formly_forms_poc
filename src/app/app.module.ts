@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core';
+import {EventEmitter, NgModule} from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
 import { AppComponent } from './app.component';
@@ -10,11 +10,16 @@ import {FormlyFieldStepper} from "./stepper.type";
 import {CommonModule} from "@angular/common";
 import {FormlyBootstrapModule} from "@ngx-formly/bootstrap";
 import {FormlyMaterialModule} from "@ngx-formly/material";
+import {EventServiceService} from "./event-service.service";
+import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
+import {MatDialog, MatDialogModule} from "@angular/material/dialog";
+import {LoaderComponent} from "./loader.component";
 
 @NgModule({
   declarations: [
     AppComponent,
-    FormlyFieldStepper
+    FormlyFieldStepper,
+    LoaderComponent
   ],
   imports: [
     CommonModule,
@@ -23,6 +28,8 @@ import {FormlyMaterialModule} from "@ngx-formly/material";
     FormsModule,
     ReactiveFormsModule,
     MatStepperModule,
+    MatProgressSpinnerModule,
+    MatDialogModule,
     FormlyMaterialModule,
     FormlyBootstrapModule,
     FormlyModule.forRoot({
@@ -34,7 +41,7 @@ import {FormlyMaterialModule} from "@ngx-formly/material";
       ],
     }),
   ],
-  providers: [],
+  providers: [EventServiceService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

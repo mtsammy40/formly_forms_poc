@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import {Component, EventEmitter} from '@angular/core';
 import {FormGroup} from "@angular/forms";
 import {FormlyFieldConfig, FormlyFormOptions} from "@ngx-formly/core";
+import {EventServiceService} from "./event-service.service";
 
 @Component({
   selector: 'app-root',
@@ -21,30 +22,34 @@ export class AppComponent {
 
         {
           "templateOptions": {
-            "label": "Step 1"
+            "label": "Step 1",
+            "attributes":{
+              "ib_action": "fetchFields"
+            },
           },
           "fieldGroup": [
             {
-              "key": "otherAccNo",
-              "type": "input",
-              "fetchUrl": "",
-              "responseType": "",
+              "key": "eloanCode",
+              "type": "select",
+              "fetchUrl": "/ibPortal/eloanTypesEncrypted",
+              "responseType": "LOANS",
               "templateOptions": {
-                "label": "Select destination account",
-                "type": "text",
-                "minLength": 2,
-                "required": true,
+                "label": "Select Eloan Type",
+                "required": "true",
+                "options": [
+                  { label: 'Account 1 | 123456777', value: '123456777' },
+                  { label: 'Account 2 | 100001001', value: '100001001' }
+                ],
                 "attributes": {
-                  "ib_action": "validateAccount",
-                  "ib_display_response": true
-                }
-              }
+                  "ib_action": "fetchFields"
+                },
+              },
             }
           ]
         },
         {
           "templateOptions": {
-            "label": "Step 2"
+            "label": "Step 3"
           },
           "fieldGroup": [
             {
@@ -60,13 +65,12 @@ export class AppComponent {
                 "max": 100000,
                 "required": "true"
               },
-              "hideExpression": "!model.otherAccNo"
             }
           ]
         },
         {
           "templateOptions": {
-            "label": "Step 3"
+            "label": "Step 4"
           },
           "fieldGroup": [
             {
@@ -81,7 +85,6 @@ export class AppComponent {
                 "minLength": 4,
                 "maxLength": 4
               },
-              "hideExpression": "!model.amount"
             }
           ]
         },
@@ -100,7 +103,6 @@ export class AppComponent {
                 "type": "number"
               },
               "expressionProperties": {
-                "hideExpression": "!model.OTP"
               }
             }
           ]
@@ -108,6 +110,21 @@ export class AppComponent {
       ]
     }
   ];
+
+  constructor(private eventService: EventServiceService) {
+    eventService.listen().subscribe(event => {
+      console.log('On update config', event)
+      if(event._event) {
+        switch (event._event) {
+          case 'configModified':
+            this.fields[0]?.fieldGroup.splice(event._atIndex, 0, ...event.data)
+            this.fields = [...this.fields];
+            console.log('new fields ', this.fields);
+            break;
+        }
+      }
+    })
+  }
 
   onSubmit(model: any) {
     console.log('Submitting ...', model);
